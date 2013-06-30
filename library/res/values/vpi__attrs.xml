@@ -86,11 +86,18 @@
             <enum name="none" value="0" />
             <enum name="triangle" value="1" />
             <enum name="underline" value="2" />
+            <enum name="image" value="3" />
         </attr>
+        <!-- Image of the footer indicator. -->
+        <attr name="footerIndicatorImage" format="reference" />
         <!-- Height of the indicator above the footer line. -->
         <attr name="footerIndicatorHeight" format="dimension" />
         <!-- Left and right padding of the underline indicator. -->
         <attr name="footerIndicatorUnderlinePadding" format="dimension" />
+        <!-- Left and right padding of the image indicator. -->
+        <attr name="footerIndicatorImagePadding" format="dimension" />
+        <!-- Top and bottom margin of the image indicator. -->
+        <attr name="footerIndicatorImageMargin" format="dimension" />
         <!-- Padding between the bottom of the title and the footer. -->
         <attr name="footerPadding" format="dimension" />
         <!-- Position of the line. -->

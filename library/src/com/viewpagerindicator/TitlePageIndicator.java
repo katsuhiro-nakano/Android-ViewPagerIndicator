@@ -20,10 +20,13 @@ package com.viewpagerindicator;
 import android.content.Context;
 import android.content.res.Resources;
 import android.content.res.TypedArray;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Rect;
+import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.os.Parcel;
@@ -77,7 +80,7 @@ public class TitlePageIndicator extends View implements PageIndicator {
     }
 
     public enum IndicatorStyle {
-        None(0), Triangle(1), Underline(2);
+        None(0), Triangle(1), Underline(2), Image(3);
 
         public final int value;
 
@@ -124,6 +127,10 @@ public class TitlePageIndicator extends View implements PageIndicator {
     private int mColorText;
     private int mColorSelected;
     private Path mPath = new Path();
+    private Bitmap mBitmap;
+    private final Rect mBitmapSrc = new Rect();
+    private final RectF mBitmapDst = new RectF();
+    private final Paint mBitmapPaint = new Paint();
     private final Rect mBounds = new Rect();
     private final Paint mPaintFooterLine = new Paint();
     private IndicatorStyle mFooterIndicatorStyle;
@@ -131,6 +138,8 @@ public class TitlePageIndicator extends View implements PageIndicator {
     private final Paint mPaintFooterIndicator = new Paint();
     private float mFooterIndicatorHeight;
     private float mFooterIndicatorUnderlinePadding;
+    private float mFooterIndicatorImagePadding;
+    private float mFooterIndicatorImageMargin;
     private float mFooterPadding;
     private float mTitlePadding;
     private float mTopPadding;
@@ -167,6 +176,8 @@ public class TitlePageIndicator extends View implements PageIndicator {
         final int defaultFooterIndicatorStyle = res.getInteger(R.integer.default_title_indicator_footer_indicator_style);
         final float defaultFooterIndicatorHeight = res.getDimension(R.dimen.default_title_indicator_footer_indicator_height);
         final float defaultFooterIndicatorUnderlinePadding = res.getDimension(R.dimen.default_title_indicator_footer_indicator_underline_padding);
+        final float defaultFooterIndicatorImagePadding = res.getDimension(R.dimen.default_title_indicator_footer_indicator_image_padding);
+        final float defaultFooterIndicatorImageMargin = res.getDimension(R.dimen.default_title_indicator_footer_indicator_image_margin);
         final float defaultFooterPadding = res.getDimension(R.dimen.default_title_indicator_footer_padding);
         final int defaultLinePosition = res.getInteger(R.integer.default_title_indicator_line_position);
         final int defaultSelectedColor = res.getColor(R.color.default_title_indicator_selected_color);
@@ -185,6 +196,8 @@ public class TitlePageIndicator extends View implements PageIndicator {
         mFooterIndicatorStyle = IndicatorStyle.fromValue(a.getInteger(R.styleable.TitlePageIndicator_footerIndicatorStyle, defaultFooterIndicatorStyle));
         mFooterIndicatorHeight = a.getDimension(R.styleable.TitlePageIndicator_footerIndicatorHeight, defaultFooterIndicatorHeight);
         mFooterIndicatorUnderlinePadding = a.getDimension(R.styleable.TitlePageIndicator_footerIndicatorUnderlinePadding, defaultFooterIndicatorUnderlinePadding);
+        mFooterIndicatorImagePadding = a.getDimension(R.styleable.TitlePageIndicator_footerIndicatorImagePadding, defaultFooterIndicatorImagePadding);
+        mFooterIndicatorImageMargin = a.getDimension(R.styleable.TitlePageIndicator_footerIndicatorImageMargin, defaultFooterIndicatorImageMargin);
         mFooterPadding = a.getDimension(R.styleable.TitlePageIndicator_footerPadding, defaultFooterPadding);
         mLinePosition = LinePosition.fromValue(a.getInteger(R.styleable.TitlePageIndicator_linePosition, defaultLinePosition));
         mTopPadding = a.getDimension(R.styleable.TitlePageIndicator_topPadding, defaultTopPadding);
@@ -193,6 +206,12 @@ public class TitlePageIndicator extends View implements PageIndicator {
         mColorSelected = a.getColor(R.styleable.TitlePageIndicator_selectedColor, defaultSelectedColor);
         mColorText = a.getColor(R.styleable.TitlePageIndicator_android_textColor, defaultTextColor);
         mBoldText = a.getBoolean(R.styleable.TitlePageIndicator_selectedBold, defaultSelectedBold);
+
+        final int footerIndicatorImage = a.getResourceId(R.styleable.TitlePageIndicator_footerIndicatorImage, 0);
+        mBitmap = footerIndicatorImage != 0 ? BitmapFactory.decodeResource(res, footerIndicatorImage) : null;
+        if (mBitmap != null) {
+            mBitmapSrc.set(0, 0, mBitmap.getWidth(), mBitmap.getHeight());
+        }
 
         final float textSize = a.getDimension(R.styleable.TitlePageIndicator_android_textSize, defaultTextSize);
         final int footerColor = a.getColor(R.styleable.TitlePageIndicator_footerColor, defaultFooterColor);
@@ -507,10 +526,11 @@ public class TitlePageIndicator extends View implements PageIndicator {
         canvas.drawPath(mPath, mPaintFooterLine);
 
         float heightMinusLine = height - footerLineHeight;
+        final float heightMinusLineMinusIndicator = heightMinusLine - footerIndicatorLineHeight;
         switch (mFooterIndicatorStyle) {
             case Triangle:
                 mPath.reset();
-                mPath.moveTo(halfWidth, heightMinusLine - footerIndicatorLineHeight);
+                mPath.moveTo(halfWidth, heightMinusLineMinusIndicator);
                 mPath.lineTo(halfWidth + footerIndicatorLineHeight, heightMinusLine);
                 mPath.lineTo(halfWidth - footerIndicatorLineHeight, heightMinusLine);
                 mPath.close();
@@ -525,7 +545,6 @@ public class TitlePageIndicator extends View implements PageIndicator {
                 Rect underlineBounds = bounds.get(page);
                 final float rightPlusPadding = underlineBounds.right + mFooterIndicatorUnderlinePadding;
                 final float leftMinusPadding = underlineBounds.left - mFooterIndicatorUnderlinePadding;
-                final float heightMinusLineMinusIndicator = heightMinusLine - footerIndicatorLineHeight;
 
                 mPath.reset();
                 mPath.moveTo(leftMinusPadding, heightMinusLine);
@@ -536,6 +555,24 @@ public class TitlePageIndicator extends View implements PageIndicator {
 
                 mPaintFooterIndicator.setAlpha((int)(0xFF * selectedPercent));
                 canvas.drawPath(mPath, mPaintFooterIndicator);
+                mPaintFooterIndicator.setAlpha(0xFF);
+                break;
+
+            case Image:
+                if (!currentSelected || page >= boundsSize || mBitmap == null) {
+                    break;
+                }
+
+                Rect imageBounds = bounds.get(page);
+                final float imageHeight = footerIndicatorLineHeight - mFooterIndicatorImageMargin;
+                final float bitmapDstLeft = imageBounds.left - mFooterIndicatorImagePadding;
+                final float bitmapDstTop = heightMinusLineMinusIndicator - imageHeight;
+                final float bitmapDstRight = imageBounds.right + mFooterIndicatorImagePadding;
+                final float bitmapDstBottom = heightMinusLineMinusIndicator + imageHeight;
+
+                mBitmapDst.set(bitmapDstLeft, bitmapDstTop, bitmapDstRight, bitmapDstBottom);
+                mBitmapPaint.setAlpha((int)(0xFF * selectedPercent));
+                canvas.drawBitmap(mBitmap, mBitmapSrc, mBitmapDst, mBitmapPaint);
                 mPaintFooterIndicator.setAlpha(0xFF);
                 break;
         }
