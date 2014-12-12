@@ -10,7 +10,7 @@ allprojects {
 }
 apply plugin: 'android-library'
 apply plugin: 'maven'
-dependencies { compile group: 'android.support', name: 'compatibility-v13', version: '21.0.1' }
+dependencies { compile group: 'android.support', name: 'compatibility-v13', version: '21.0.3' }
 android {
 	compileSdkVersion 15
 	buildToolsVersion "21.1.1"
